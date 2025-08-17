@@ -1,0 +1,114 @@
+name: Deploy RTX Toolkit Bot
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Lint code
+      run: npm run lint
+    
+    - name: Build TypeScript
+      run: npm run build
+    
+    - name: Verify build output
+      run: ls -la dist/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      run: |
+        docker build -t rtx-toolkit-bot:latest .
+        docker save rtx-toolkit-bot:latest | gzip > rtx-toolkit-bot.tar.gz
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          # Create deployment directory
+          mkdir -p ~/rtx-toolkit-deployment
+          cd ~/rtx-toolkit-deployment
+          
+          # Stop existing container if running
+          docker-compose down 2>/dev/null || true
+          
+          # Remove old image
+          docker rmi rtx-toolkit-bot:latest 2>/dev/null || true
+    
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        source: "rtx-toolkit-bot.tar.gz,docker-compose.yml,.env.example"
+        target: "~/rtx-toolkit-deployment/"
+    
+    - name: Start application
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          cd ~/rtx-toolkit-deployment
+          
+          # Load Docker image
+          docker load < rtx-toolkit-bot.tar.gz
+          
+          # Create .env file if it doesn't exist
+          if [ ! -f .env ]; then
+            cp .env.example .env
+            echo "Please configure .env file with your BOT_TOKEN"
+            exit 1
+          fi
+          
+          # Start application
+          docker-compose up -d
+          
+          # Wait for health check
+          sleep 30
+          
+          # Verify deployment
+          if docker-compose ps | grep -q "Up"; then
+            echo "✅ RTX Toolkit Bot deployed successfully!"
+          else
+            echo "❌ Deployment failed!"
+            docker-compose logs
+            exit 1
+          fi
+          
+          # Cleanup
+          rm -f rtx-toolkit-bot.tar.gz
