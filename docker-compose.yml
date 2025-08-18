@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  rtx-toolkit-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rtx-toolkit-bot
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - LOG_LEVEL=info
+      - LOG_FORMAT=json
+    env_file:
+      - .env
+    ports:
+      - "8443:8443"  # For webhook mode
+    volumes:
+      - ./logs:/app/logs  # Optional: for persistent logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Health check passed')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - rtx-network
+
+  # Optional: Add logging service for production
+  # log-aggregator:
+  #   image: grafana/loki:latest
+  #   container_name: loki
+  #   ports:
+  #     - "3100:3100"
+  #   networks:
+  #     - rtx-network
+
+networks:
+  rtx-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local
