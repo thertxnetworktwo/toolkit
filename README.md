@@ -90,7 +90,10 @@ A professional Telegram bot representing the RTX Network brand, built with TypeS
 ### Manual Docker Build
 
 ```bash
-# Build the image
+# Build the TypeScript code locally first
+npm run build
+
+# Build the Docker image
 docker build -t rtx-toolkit-bot .
 
 # Run the container
