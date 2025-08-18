@@ -49,9 +49,6 @@ coverage/
 ehthumbs.db
 Thumbs.db
 
-# Docker
-.dockerignore
-
 # Temporary files
 tmp/
 temp/
