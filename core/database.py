@@ -229,6 +229,41 @@ class DatabaseManager:
         session = await self.get_session(user_id)
         return session is not None
     
+    async def get_user_session(self, user_id: int) -> Optional[dict]:
+        """Get user session information"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                async with db.execute(
+                    'SELECT session_data, phone_number, created_at FROM user_sessions WHERE user_id = ? AND is_active = 1',
+                    (user_id,)
+                ) as cursor:
+                    result = await cursor.fetchone()
+                    if result:
+                        return {
+                            'session_data': result[0],
+                            'phone_number': result[1],
+                            'created_at': result[2]
+                        }
+                    return None
+        except Exception as e:
+            self.logger.error(f"Failed to get user session for {user_id}: {e}")
+            return None
+    
+    async def remove_user_session(self, user_id: int) -> bool:
+        """Remove user session"""
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute(
+                    'UPDATE user_sessions SET is_active = 0 WHERE user_id = ?',
+                    (user_id,)
+                )
+                await db.commit()
+                self.logger.info(f"Session removed for user {user_id}")
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to remove session for user {user_id}: {e}")
+            return False
+    
     # Frozen cache management
     async def cache_frozen_result(self, channel_id: str, phone_number: str, is_frozen: bool):
         """Cache frozen check result"""

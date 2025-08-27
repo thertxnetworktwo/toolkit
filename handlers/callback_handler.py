@@ -44,6 +44,10 @@ class CallbackHandler:
             await self._show_session_menu(query)
         elif data == 'upload_session':
             await self._handle_session_upload(query)
+        elif data == 'remove_session':
+            await self._handle_remove_session(query)
+        elif data == 'confirm_remove_session':
+            await self._confirm_remove_session(query)
         elif data == 'manage_channels':
             await self._show_channel_management(query)
         elif data == 'add_channel':
@@ -284,6 +288,90 @@ Please send your Telegram session file (.session or .zip)
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    
+    async def _handle_remove_session(self, query):
+        """Handle session removal request"""
+        user_id = query.from_user.id
+        
+        # Check if user has a session
+        user_session = await self.db.get_user_session(user_id)
+        
+        if not user_session:
+            text = """
+⚠️ **No Session Found**
+
+You don't have any session file uploaded. There's nothing to remove.
+
+📤 To upload a session, use the "Upload Session" option.
+            """
+            keyboard = [
+                [InlineKeyboardButton("📤 Upload Session", callback_data='upload_session')],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data='main_menu')]
+            ]
+        else:
+            text = """
+🗑️ **Remove Session**
+
+⚠️ **Warning:** This will permanently delete your stored session file. 
+
+After removal:
+- You'll need to upload a new session to use bot features
+- Your current session data will be completely removed
+- This action cannot be undone
+
+Are you sure you want to proceed?
+            """
+            keyboard = [
+                [InlineKeyboardButton("✅ Yes, Remove Session", callback_data='confirm_remove_session')],
+                [InlineKeyboardButton("🔙 Cancel", callback_data='session_menu')]
+            ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+    
+    async def _confirm_remove_session(self, query):
+        """Confirm and execute session removal"""
+        user_id = query.from_user.id
+        
+        try:
+            # Remove session from database
+            await self.db.remove_user_session(user_id)
+            
+            text = """
+✅ **Session Removed Successfully**
+
+Your Telegram session has been permanently deleted from our system.
+
+📤 **Next Steps:**
+- To use bot features again, you'll need to upload a new session file
+- All your other settings (channels, premium status) remain unchanged
+- Your account data is still preserved
+
+🔐 **Security:** Your session data has been completely wiped from our servers.
+            """
+            
+            keyboard = [
+                [InlineKeyboardButton("📤 Upload New Session", callback_data='upload_session')],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data='main_menu')]
+            ]
+            
+        except Exception as e:
+            self.logger.error(f"Error removing session for user {user_id}: {e}")
+            text = """
+❌ **Error Removing Session**
+
+Something went wrong while removing your session. Please try again.
+
+If the problem persists, contact support.
+            """
+            
+            keyboard = [
+                [InlineKeyboardButton("🔄 Try Again", callback_data='remove_session')],
+                [InlineKeyboardButton("🏠 Main Menu", callback_data='main_menu')]
+            ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
     
     async def _show_channel_management(self, query):
