@@ -79,6 +79,14 @@ class RTXToolkitBot:
     
     async def _error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle errors"""
+        error_message = str(context.error)
+        
+        # Handle specific error types
+        if "Can't parse entities" in error_message:
+            self.logger.warning(f"Entity parsing error for update {update}: {error_message}")
+            # Don't send error message to user for entity parsing errors as they're usually benign
+            return
+        
         self.logger.error(f"Update {update} caused error {context.error}")
         
         # If the error was caused by a user interaction, inform them
