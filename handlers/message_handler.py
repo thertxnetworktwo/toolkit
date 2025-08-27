@@ -58,6 +58,39 @@ class MessageHandler:
         
         return safe_name
     
+    def _sanitize_text_for_telegram(self, text: str) -> str:
+        """Sanitize text for safe display in Telegram messages"""
+        if not text:
+            return ""
+        
+        # Apply the same sanitization as filenames for consistency
+        return self._sanitize_filename(text)
+    
+    async def _safe_reply(self, update, text: str, reply_markup=None, parse_mode=None):
+        """Safely send a reply message, handling entity parsing errors"""
+        try:
+            await update.message.reply_text(
+                text,
+                reply_markup=reply_markup,
+                parse_mode=parse_mode
+            )
+        except Exception as e:
+            if "Can't parse entities" in str(e):
+                # Retry without parse_mode to avoid entity parsing issues
+                self.logger.warning(f"Entity parsing failed, retrying without formatting: {e}")
+                try:
+                    await update.message.reply_text(
+                        text,
+                        reply_markup=reply_markup
+                    )
+                except Exception as e2:
+                    self.logger.error(f"Failed to send message even without formatting: {e2}")
+                    await update.message.reply_text(
+                        "⚠️ Message could not be sent due to formatting issues. Please try again."
+                    )
+            else:
+                raise e
+    
     async def handle_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle text messages based on user state"""
         # Check if update has effective_user (can be None for channel posts)
@@ -111,6 +144,10 @@ class MessageHandler:
         if not update.message or not update.message.document:
             self.logger.warning(f"User {user_id} sent update without document")
             return
+        
+        # Handle forwarded messages more carefully due to potential entity parsing issues
+        if update.message.forward_origin:
+            self.logger.info(f"User {user_id} sent forwarded document, handling carefully")
             
         document = update.message.document
         current_state = self.state_manager.get_state(user_id)
@@ -345,8 +382,9 @@ class MessageHandler:
             temp_dir = Path(__file__).parent.parent / 'data' / 'temp'
             temp_dir.mkdir(exist_ok=True)
             
-            # Download file
-            temp_file = temp_dir / f"session_{user_id}_{document.file_name}"
+            # Download file - use sanitized filename for temp file
+            safe_temp_filename = self._sanitize_filename(document.file_name or "session_file")
+            temp_file = temp_dir / f"session_{user_id}_{safe_temp_filename}"
             await file.download_to_drive(temp_file)
             
             # Process based on file type
@@ -445,12 +483,18 @@ class MessageHandler:
             self.state_manager.set_context(user_id, 'bulk_numbers', phone_numbers)
             self.state_manager.set_context(user_id, 'source_file', document.file_name)
             
-            await update.message.reply_text(
-                f"✅ **File Processed Successfully!**\\n\\n"
-                f"📄 **File:** {self._sanitize_filename(document.file_name)}\\n"
-                f"📱 **Found:** {len(phone_numbers)} phone numbers\\n\\n"
-                f"🔄 Ready to check frozen status.",
-                parse_mode='Markdown',
+            # Create safe message without markdown formatting that could cause issues
+            safe_filename = self._sanitize_filename(document.file_name)
+            message_text = (
+                f"✅ File Processed Successfully!\\n\\n"
+                f"📄 File: {safe_filename}\\n"
+                f"📱 Found: {len(phone_numbers)} phone numbers\\n\\n"
+                f"🔄 Ready to check frozen status."
+            )
+            
+            await self._safe_reply(
+                update,
+                message_text,
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("❄️ Check All Frozen", callback_data='check_bulk_frozen')],
                     [InlineKeyboardButton("🏠 Main Menu", callback_data='main_menu')]
@@ -660,13 +704,19 @@ class MessageHandler:
                 
                 self.state_manager.set_context(user_id, 'withdraw_numbers', unique_numbers)
                 
-                await update.message.reply_text(
-                    f"✅ **File Added to Withdraw Processing**\\n\\n"
-                    f"📁 **File:** {self._sanitize_filename(document.file_name)}\\n"
-                    f"📱 **New Numbers:** {len(phone_numbers)}\\n"
-                    f"📊 **Total Numbers:** {len(unique_numbers)}\\n\\n"
-                    f"🔄 Ready to process withdraw request.",
-                    parse_mode='Markdown',
+                # Create safe message without markdown formatting that could cause issues
+                safe_filename = self._sanitize_filename(document.file_name)
+                message_text = (
+                    f"✅ File Added to Withdraw Processing\\n\\n"
+                    f"📁 File: {safe_filename}\\n"
+                    f"📱 New Numbers: {len(phone_numbers)}\\n"
+                    f"📊 Total Numbers: {len(unique_numbers)}\\n\\n"
+                    f"🔄 Ready to process withdraw request."
+                )
+                
+                await self._safe_reply(
+                    update,
+                    message_text,
                     reply_markup=InlineKeyboardMarkup([
                         [InlineKeyboardButton("✅ Process All", callback_data='confirm_withdraw')],
                         [InlineKeyboardButton("🔙 Cancel", callback_data='main_menu')]

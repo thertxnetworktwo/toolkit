@@ -81,9 +81,25 @@ class RTXToolkitBot:
         """Handle errors"""
         error_message = str(context.error)
         
+    async def _error_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle errors"""
+        error_message = str(context.error)
+        
         # Handle specific error types
         if "Can't parse entities" in error_message:
-            self.logger.warning(f"Entity parsing error for update {update}: {error_message}")
+            # Check if it's a forwarded message which often causes entity parsing issues
+            is_forwarded = update.message and update.message.forward_origin if update and update.message else False
+            has_document = update.message and update.message.document if update and update.message else False
+            
+            log_context = []
+            if is_forwarded:
+                log_context.append("forwarded message")
+            if has_document:
+                filename = update.message.document.file_name if update.message.document.file_name else "unknown"
+                log_context.append(f"document: {filename}")
+            
+            context_info = f" ({', '.join(log_context)})" if log_context else ""
+            self.logger.warning(f"Entity parsing error{context_info}: {error_message}")
             # Don't send error message to user for entity parsing errors as they're usually benign
             return
         

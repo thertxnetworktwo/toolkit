@@ -215,8 +215,26 @@ For support and questions:
 
 ## 📞 Support
 
-This is a professional bot rebuild with proper state management. All handler conflicts have been resolved through architectural improvements.
+For support and questions:
+- 🐛 **Issues**: [GitHub Issues](https://github.com/thertxnetworktwo/toolkit/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/thertxnetworktwo/toolkit/discussions)
+
+## 📋 Changelog
+
+### August 27, 2025 - Latest Updates
+- 🔧 **Fixed**: Remove Session callback handler - resolves "Unknown action" error
+- 🔧 **Fixed**: Entity parsing errors with Unicode filenames (mathematical bold characters)
+- ✨ **Enhanced**: Filename sanitization with smart Unicode character mapping
+- ✨ **Added**: Complete session management with confirmation dialogs
+- 🛡️ **Improved**: Error handling for Telegram entity parsing edge cases
+
+### Initial Release - August 2025
+- 🎯 **Complete Rebuild**: Professional state management architecture
+- 🎨 **UI Overhaul**: Friendly icons replacing harsh error symbols
+- 📁 **File Processing**: Enhanced TXT, CSV, ZIP support with smart detection
+- 👑 **Admin System**: Auto-premium privileges and user management
+- 🔒 **Security**: Comprehensive data protection and input validation
 
 ---
 
-**RTX Toolkit Bot v3** - Professional state-managed Telegram bot architecture
+**⚡ RTX Toolkit Bot - Professional Telegram Number Management** ⚡
