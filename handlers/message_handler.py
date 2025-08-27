@@ -95,7 +95,7 @@ class MessageHandler:
         """Handle text messages based on user state"""
         # Check if update has effective_user (can be None for channel posts)
         if not update.effective_user:
-            self.logger.warning("Received update without effective_user, ignoring")
+            self.logger.debug("Received update without effective_user, ignoring")
             return
             
         user_id = update.effective_user.id
@@ -135,7 +135,7 @@ class MessageHandler:
         """Handle document uploads based on user state"""
         # Check if update has effective_user (can be None for channel posts)
         if not update.effective_user:
-            self.logger.warning("Received document update without effective_user, ignoring")
+            self.logger.debug("Received document update without effective_user, ignoring")
             return
             
         user_id = update.effective_user.id
@@ -486,9 +486,9 @@ class MessageHandler:
             # Create safe message without markdown formatting that could cause issues
             safe_filename = self._sanitize_filename(document.file_name)
             message_text = (
-                f"✅ File Processed Successfully!\\n\\n"
-                f"📄 File: {safe_filename}\\n"
-                f"📱 Found: {len(phone_numbers)} phone numbers\\n\\n"
+                f"✅ File Processed Successfully!\n\n"
+                f"📄 File: {safe_filename}\n"
+                f"📱 Found: {len(phone_numbers)} phone numbers\n\n"
                 f"🔄 Ready to check frozen status."
             )
             

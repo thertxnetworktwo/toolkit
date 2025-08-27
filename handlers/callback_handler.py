@@ -855,17 +855,18 @@ Please upload a file containing phone numbers:
             return
         
         # Start processing (this would integrate with your frozen checking logic)
-        text = f"""
-🔄 **Processing Frozen Check**
-
-📁 **Source:** {source_file or 'Unknown'}
-📱 **Numbers:** {len(numbers)}
-📂 **Channels:** {len(channels)}
-
-⏳ Processing... This may take a moment.
-        """
+        text = (
+            f"🔄 Processing Frozen Check\n\n"
+            f"📁 Source: {source_file or 'Unknown'}\n"
+            f"📱 Numbers: {len(numbers)}\n"
+            f"📂 Channels: {len(channels)}\n\n"
+            f"⏳ Processing... This may take a moment."
+        )
         
-        await query.edit_message_text(text, parse_mode='Markdown')
+        try:
+            await query.edit_message_text(text)
+        except Exception as e:
+            self.logger.error(f"Failed to update processing message: {e}")
         
         # Here you would integrate with your actual frozen checking logic
         # For now, simulate processing
@@ -876,17 +877,15 @@ Please upload a file containing phone numbers:
             'channels_checked': len(channels)
         }
         
-        result_text = f"""
-✅ **Frozen Check Complete**
-
-📊 **Results:**
-• Total Numbers: {results['total']}
-• Frozen: {results['frozen']}
-• Active: {results['active']}
-• Channels Checked: {results['channels_checked']}
-
-📄 **Report:** Processing completed successfully.
-        """
+        result_text = (
+            f"✅ Frozen Check Complete\n\n"
+            f"📊 Results:\n"
+            f"• Total Numbers: {results['total']}\n"
+            f"• Frozen: {results['frozen']}\n"
+            f"• Active: {results['active']}\n"
+            f"• Channels Checked: {results['channels_checked']}\n\n"
+            f"📄 Report: Processing completed successfully."
+        )
         
         keyboard = [
             [InlineKeyboardButton("📋 Detailed Report", callback_data='frozen_report')],
@@ -898,7 +897,12 @@ Please upload a file containing phone numbers:
         self.state_manager.clear_context(user_id, 'bulk_numbers')
         self.state_manager.clear_context(user_id, 'source_file')
         
-        await query.edit_message_text(result_text, reply_markup=reply_markup, parse_mode='Markdown')
+        try:
+            await query.edit_message_text(result_text, reply_markup=reply_markup)
+        except Exception as e:
+            self.logger.error(f"Failed to update result message: {e}")
+            # Fallback: send new message if edit fails
+            await query.message.reply_text(result_text, reply_markup=reply_markup)
     
     async def _process_bulk_withdraw(self, query):
         """Process bulk withdraw from stored numbers"""
